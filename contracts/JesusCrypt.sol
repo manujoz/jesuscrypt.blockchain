@@ -324,21 +324,6 @@ contract JesusCrypt is ERC20, Ownable, Pausable, JesusCryptUtils {
     }
 
     /**
-     * @dev Unlock the tokens
-     * @notice This function is used to unlock the tokens
-     */
-    function unlockTokens() internal {
-        require(block.timestamp >= unlockDate, "Tokens are still locked");
-
-        uint256 lockedTokens = balanceOf(address(this));
-        uint256 amountToUnlock = lockedTokens / 10;
-
-        _transfer(address(this), owner(), amountToUnlock);
-
-        unlockDate = block.timestamp + 15 days;
-    }
-
-    /**
      * @dev Unpause the contract
      * @notice This function is used to unpause the contract
      */
