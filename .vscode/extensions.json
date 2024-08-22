@@ -1,0 +1,14 @@
+{
+    "recommendations": [
+        "ackeeblockchain.tools-for-solidity", 
+        "hosho.solidity-debugger",
+        "jebbs.plantuml",
+        "tintinweb.graphviz-interactive-preview",
+        "tintinweb.solidity-metrics",
+        "tintinweb.solidity-visual-auditor", 
+        "tintinweb.vscode-ethover",
+        "tintinweb.vscode-inline-bookmarks",
+        "tintinweb.vscode-solidity-flattener",
+        "tintinweb.vscode-solidity-language"
+    ]
+}
