@@ -8,6 +8,7 @@ import "@pancakeswap/v3-core/contracts/interfaces/IPancakeV3Pool.sol";
 import "./interfaces/AggregatorV3Interface.sol";
 import "./utils/JesusCryptUtils.sol";
 import "./JesusCryptPresale.sol";
+import "./JesusCryptAdvisors.sol";
 
 contract JesusCrypt is ERC20, Ownable, Pausable, JesusCryptUtils {
     // Initial supply of the token
@@ -18,8 +19,15 @@ contract JesusCrypt is ERC20, Ownable, Pausable, JesusCryptUtils {
     address public constant USDT_ADDRESS = 0x55d398326f99059fF775485246999027B3197955;
     address public constant WBNB_ADDRESS = 0xBB4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c;
 
+    // Developers percent, presale max percent and marketing max percent tokenomics
+    uint256 public constant DEVELOPERS_PERCENT = 15;
+    uint256 public constant PRESALE_MAX_PERCENT = 35;
+    uint256 public constant ADVISORS_MAX_PERCENT = 10;
+    uint256 public constant ADVISOR_MAX_PERCENT = 0.3;
+
     // PancakeSwap properties, liquidity control and presale
     JesusCryptPresale public presale;
+    JesusCryptAdvisors public advisors;
 
     // If limited is true, the token will have a maximum and minimum holding amount
     // maxHoldingAmount: Maximum amount of tokens that can be held by an address
@@ -59,7 +67,7 @@ contract JesusCrypt is ERC20, Ownable, Pausable, JesusCryptUtils {
         approve(address(this), INITIAL_SUPPLY);
 
         // Transfer 15% of the total supply to the developers
-        uint256 amountToDevs = (INITIAL_SUPPLY * 15) / 100 / _developers.length;
+        uint256 amountToDevs = (INITIAL_SUPPLY * DEVELOPERS_PERCENT) / 100 / _developers.length;
         for (uint256 i = 0; i < _developers.length; i++) {
             presale.presaleHolders[_developers[i]] = presale.PresaleHolders({
                 totalPresaleAmount: amountToDevs,
@@ -122,6 +130,12 @@ contract JesusCrypt is ERC20, Ownable, Pausable, JesusCryptUtils {
             }
         }
 
+        if (advisors.isAdvisor(_from)) {
+            require(!advisors.advisorTokensIsLockeds(_from), "Advisor tokens are still locked");
+            require(!advisors.advisorAmountToWithdrawAllowed(_from, _value), "Exceeds maximum amount of tokens that can be withdrawn");
+            advisors.updateAdvisor(_from, _value);
+        }
+
         _unlockTokens();
 
         super._update(_from, _to, _value);
@@ -162,6 +176,7 @@ contract JesusCrypt is ERC20, Ownable, Pausable, JesusCryptUtils {
      */
     function addLiquidity() public onlyOwner {
         presale.addLiquidity();
+        advisors.liquidityAdded();
         require(approve(address(presale), 0), "Token disapproval failed");
 
         _lockRemainingTokens();
@@ -244,6 +259,19 @@ contract JesusCrypt is ERC20, Ownable, Pausable, JesusCryptUtils {
                 break;
             }
         }
+    }
+
+    /**
+     * @dev Set advisors contract
+     * @param _jesusCryptAdvisors Address of the JesusCryptAdvisors contract
+     */
+    function setAdvisors(address _jesusCryptAdvisors) external onlyOwner {
+        advisors = JesusCryptAdvisors(_jesusCryptAdvisors);
+
+        uint256 advisorsMaxAmount = (INITIAL_SUPPLY * ADVISORS_MAX_PERCENT) / 100;
+        uint256 advisorsMaxAmountForOneAdvisor = (INITIAL_SUPPLY * ADVISOR_MAX_PERCENT) / 100;
+        advisors.maxAmountForAdvisors = advisorsMaxAmount;
+        advisors.maxAmountForOneAdvisor = advisorsMaxAmountForOneAdvisor;
     }
 
     /**
