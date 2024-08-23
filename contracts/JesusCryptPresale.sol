@@ -54,7 +54,7 @@ contract JesusCryptPresale is IERC20, Ownable, JesusCryptUtils {
      * @param tokenAmount Amount of tokens to add
      * @notice This function is used to add liquidity to the PancakeSwap V3 pool with BNB, after that the liquidity will be locked for 18 months
      */
-    function _addLiquidityBNB(uint256 _bnbAmount) internal {
+    function _addLiquidityBNB(uint256 _bnbAmount) internal returns (address) {
         IWBNB(WBNB_ADDRESS).deposit{value: _bnbAmount}();
 
         uint256 bnbPriceInUSDT = getLatestBNBPrice();
@@ -68,7 +68,7 @@ contract JesusCryptPresale is IERC20, Ownable, JesusCryptUtils {
         uint256 amount1Min = _bnbAmount - ((_bnbAmount * slippageTolerance) / 100);
 
         uint160 sqrtPriceX96 = _calculateSqrtPriceX96(START_JSCP_PRICE * 1e18, true);
-        positionManager.createAndInitializePoolIfNecessary(address(this), WBNB_ADDRESS, 3000, sqrtPriceX96);
+        address poolAddress = positionManager.createAndInitializePoolIfNecessary(address(this), WBNB_ADDRESS, 3000, sqrtPriceX96);
 
         (uint256 tokenId, , , ) = positionManager.mint(
             INonfungiblePositionManager.MintParams({
@@ -87,6 +87,8 @@ contract JesusCryptPresale is IERC20, Ownable, JesusCryptUtils {
         );
 
         liquidityLocker.lockLiquidity(tokenId, block.timestamp + 18 * 30);
+
+        return poolAddress;
     }
 
     /**
@@ -95,7 +97,7 @@ contract JesusCryptPresale is IERC20, Ownable, JesusCryptUtils {
      * @param tokenAmount Amount of tokens to add
      * @notice This function is used to add liquidity to the PancakeSwap V3 pool with USDT, after that the liquidity will be locked for 18 months
      */
-    function _addLiquidityUSDT(uint256 _usdtAmount) internal {
+    function _addLiquidityUSDT(uint256 _usdtAmount) internal returns (address) {
         uint256 tokenAmount = _usdtAmount / START_JSCP_PRICE;
 
         require(jesusCryptToken.transferFrom(owner(), address(this), tokenAmount), "Token transfer failed");
@@ -105,7 +107,7 @@ contract JesusCryptPresale is IERC20, Ownable, JesusCryptUtils {
         uint256 amount1Min = _usdtAmount - ((_usdtAmount * slippageTolerance) / 100);
 
         uint160 sqrtPriceX96 = _calculateSqrtPriceX96(START_JSCP_PRICE * 1e18, false);
-        positionManager.createAndInitializePoolIfNecessary(address(this), USDT_ADDRESS, 3000, sqrtPriceX96);
+        address poolAddress = positionManager.createAndInitializePoolIfNecessary(address(this), USDT_ADDRESS, 3000, sqrtPriceX96);
 
         (uint256 tokenId, , , ) = positionManager.mint(
             INonfungiblePositionManager.MintParams({
@@ -124,6 +126,8 @@ contract JesusCryptPresale is IERC20, Ownable, JesusCryptUtils {
         );
 
         liquidityLocker.lockLiquidity(tokenId, block.timestamp + 18 * 30);
+
+        return poolAddress;
     }
 
     /**
@@ -168,20 +172,24 @@ contract JesusCryptPresale is IERC20, Ownable, JesusCryptUtils {
      * @dev Add liquidity to pancakeswa
      * @notice This function is used to add liquidity to PancakeSwap
      */
-    function addLiquidity() public onlyOwner {
+    function addLiquidity() public onlyOwner returns (address bnbPool, address usdtPool) {
         require(!isPresaleActive(), "Presale has not ended yet");
 
+        address bnbPool;
+        address usdtPool;
         if (lockedBNB > 0) {
-            _addLiquidityBNB(lockedBNB);
+            bnbPool = _addLiquidityBNB(lockedBNB);
             lockedBNB = 0;
         }
 
         if (lockedUSDT > 0) {
-            _addLiquidityUSDT(lockedUSDT);
+            usdtPool = _addLiquidityUSDT(lockedUSDT);
             lockedUSDT = 0;
         }
 
         _updatePresaleHoldersLockTime();
+
+        revert(bnbPool, usdtPool);
     }
 
     /**

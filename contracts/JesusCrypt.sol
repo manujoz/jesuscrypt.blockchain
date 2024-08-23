@@ -49,6 +49,9 @@ contract JesusCrypt is ERC20, Ownable, Pausable, JesusCryptUtils {
     uint256 public tokensLocked = 0;
     uint256 public totalLockedTokens = 0;
 
+    address public bnbPoolAddress;
+    address public usdtPoolAddress;
+
     // Events
     event TokensPurchasedPresale(address indexed purchaser, uint256 amountBNB, uint256 amountTokens);
     event PresaleStarted(uint256 currentRound, uint256 endTime, uint256 remainingTokens);
@@ -166,7 +169,7 @@ contract JesusCrypt is ERC20, Ownable, Pausable, JesusCryptUtils {
      * @notice This function is used to add liquidity to PancakeSwap
      */
     function addLiquidity() public onlyOwner {
-        presale.addLiquidity();
+        (bnbPoolAddress, usdtPoolAddress) = presale.addLiquidity();
         advisors.liquidityAdded();
         require(approve(address(presale), 0), "Token disapproval failed");
 
@@ -208,6 +211,24 @@ contract JesusCrypt is ERC20, Ownable, Pausable, JesusCryptUtils {
      */
     function decimals() public view virtual override returns (uint8) {
         return 8;
+    }
+
+    /**
+     * @dev Get the lates JSCP price
+     * @return uint256 Latest JSCP price
+     * @notice This function is used to get the latest JSCP price in USDT
+     */
+    function getTokenPrice() public view returns (uint256) {
+        IPancakeV3Pool bnbPool = IPancakeV3Pool(bnbPoolAddress);
+        (int56[] memory tickCumulative, , ) = bnbPool.observe([0, 1]);
+        int56 tickCumulativeDelta = tickCumulative[1] - tickCumulative[0];
+        int24 tick = int24(tickCumulativeDelta);
+
+        uint160 sqrtPriceX96 = TickMath.getSqrtRatioAtTick(tick);
+        uint256 jscpBnbPrice = (uint256(sqrtPriceX96) * uint256(sqrtPriceX96)) / (1 << 192);
+        uint256 bnbUsdtPrice = getLatestBNBPrice();
+
+        return jscpBnbPrice * bnbUsdtPrice;
     }
 
     /**
