@@ -72,8 +72,10 @@ contract JesusCrypt is ERC20, Ownable, Pausable, JesusCryptUtils {
             presale.presaleHolders[_developers[i]] = presale.PresaleHolders({
                 totalPresaleAmount: amountToDevs,
                 remainingAmount: amountToDevs,
-                unlockDate: presale.START_TRADING_DATE + 10 days
+                unlockDate: block.timestamp + 365 days
             });
+            presale.presaleHoldersList.push(_developers[i]);
+
             _transfer(msg.sender, _developers[i], amountToDevs);
         }
 
@@ -112,21 +114,10 @@ contract JesusCrypt is ERC20, Ownable, Pausable, JesusCryptUtils {
             }
         }
 
-        if (presale.presaleHolders[_from].remainingAmount > 0) {
-            if (block.timestamp >= presale.presaleHolders[_from].unlockDate) {
-                uint256 maxAmount = (presale.presaleHolders[_from].totalPresaleAmount * 10) / 100;
-                if (_value > maxAmount) {
-                    revert("Exceeds maximum amount of tokens that can be transferred, you can only transfer 10% of the presale tokens at a time:" + maxAmount + " tokens");
-                }
-
-                uint256 memory remainingAmount = _value > presale.presaleHolders[_from].remainingAmount ? 0 : presale.presaleHolders[_from].remainingAmount - _value;
-                presale.presaleHolders[_from].unlockDate = presale.presaleHolders[_from].unlockDate + 7 days;
-                presale.presaleHolders[_from].remainingAmount = remainingAmount;
-            } else {
-                untilDate = toDateTime(presale.presaleHolders[_from].unlockDate);
-                revert(
-                    "Presale tokens are still locked until " + untilDate[0] + "-" + untilDate[1] + "-" + untilDate[2] + " " + untilDate[3] + ":" + untilDate[4] + ":" + untilDate[5]
-                );
+        if (presale.isPresaleHolder(_from)) {
+            (bool canTransfer, string memory message) = presale.canPresaleHolderTransfer(_from, _value);
+            if (!canTransfer) {
+                revert(message);
             }
         }
 

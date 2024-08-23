@@ -42,6 +42,7 @@ contract JesusCryptPresale is IERC20, Ownable, JesusCryptUtils {
         uint256 unlockDate;
     }
     mapping(address => PresaleHolders) public presaleHolders;
+    address[] public presaleHoldersList;
 
     constructor(address _jesusCryptToken) Ownable(msg.sender) {
         jesusCryptToken = IERC20(_jesusCryptToken);
@@ -151,6 +152,19 @@ contract JesusCryptPresale is IERC20, Ownable, JesusCryptUtils {
     }
 
     /**
+     * @dev Update presale holders lock time
+     * @notice This function is used to update presale holders lock time after liquidity is added
+     */
+    function _updatePresaleHoldersLockTime() internal {
+        for (uint256 i = 0; i < presaleHoldersList.length; i++) {
+            address holder = presaleHoldersList[i];
+            if (block.timestamp >= presaleHolders[holder].unlockDate) {
+                presaleHolders[holder].unlockDate = block.timestamp + 10 days;
+            }
+        }
+    }
+
+    /**
      * @dev Add liquidity to pancakeswa
      * @notice This function is used to add liquidity to PancakeSwap
      */
@@ -166,6 +180,8 @@ contract JesusCryptPresale is IERC20, Ownable, JesusCryptUtils {
             _addLiquidityUSDT(lockedUSDT);
             lockedUSDT = 0;
         }
+
+        _updatePresaleHoldersLockTime();
     }
 
     /**
@@ -218,11 +234,8 @@ contract JesusCryptPresale is IERC20, Ownable, JesusCryptUtils {
         remainingAmount -= tokenAmount;
 
         if (!presaleHolders[msg.sender]) {
-            presaleHolders[msg.sender] = PresaleHolders({
-                totalPresaleAmount: tokenAmount,
-                remainingAmount: tokenAmount,
-                unlockDate: jesusCryptToken.STAR + (block.timestamp - presaleStartTime)
-            });
+            presaleHolders[msg.sender] = PresaleHolders({totalPresaleAmount: tokenAmount, remainingAmount: tokenAmount, unlockDate: block.timestamp + 365 days});
+            presaleHoldersList.push(msg.sender);
         } else {
             presaleHolders[msg.sender].totalPresaleAmount += tokenAmount;
             presaleHolders[msg.sender].remainingAmount += tokenAmount;
@@ -234,6 +247,33 @@ contract JesusCryptPresale is IERC20, Ownable, JesusCryptUtils {
         }
 
         return (presaleEnded, tokenAmount);
+    }
+
+    /**
+     * @dev Check if the presale holder can transfer tokens
+     * @param _holder Address of the holder
+     * @param _value Amount of tokens to transfer
+     * @return bool Can transfer
+     */
+    function canPresaleHolderTransfer(address _holder, uint256 _amount) public view returns (bool, string memory) {
+        if (block.timestamp >= presaleHolders[_holder].unlockDate) {
+            uint256 maxAmount = (presaleHolders[_holder].totalPresaleAmount * 10) / 100;
+            if (_amount > maxAmount) {
+                return (false, "Exceeds maximum amount of tokens that can be transferred, you can only transfer 10% of the presale tokens at a time:" + maxAmount + " tokens");
+            }
+
+            uint256 memory remainingAmount = _amount > presaleHolders[_holder].remainingAmount ? 0 : presaleHolders[_holder].remainingAmount - _amount;
+            presaleHolders[_holder].unlockDate = presaleHolders[_holder].unlockDate + 7 days;
+            presaleHolders[_holder].remainingAmount = remainingAmount;
+        } else {
+            untilDate = toDateTime(presaleHolders[_holder].unlockDate);
+            return (
+                false,
+                "Presale tokens are still locked until " + untilDate[0] + "-" + untilDate[1] + "-" + untilDate[2] + " " + untilDate[3] + ":" + untilDate[4] + ":" + untilDate[5]
+            );
+        }
+
+        return (true, "");
     }
 
     /**
@@ -252,6 +292,16 @@ contract JesusCryptPresale is IERC20, Ownable, JesusCryptUtils {
         }
 
         return true;
+    }
+
+    /**
+     * @dev Check if an address is a presale holder
+     * @param _holder Address of the holder
+     * @return bool Is presale holder
+     * @notice This function is used to check if an address is a presale holder
+     */
+    function isPresaleHolder(address _holder) public view returns (bool) {
+        return presaleHolders[_holder].totalPresaleAmount > 0;
     }
 
     /**
