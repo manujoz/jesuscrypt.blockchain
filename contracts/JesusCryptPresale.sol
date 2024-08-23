@@ -155,8 +155,7 @@ contract JesusCryptPresale is IERC20, Ownable, JesusCryptUtils {
      * @notice This function is used to add liquidity to PancakeSwap
      */
     function addLiquidity() public onlyOwner {
-        isPresaleActive();
-        require(allPresaleRoundsEnded, "Presale has not ended yet");
+        require(!isPresaleActive(), "Presale has not ended yet");
 
         if (lockedBNB > 0) {
             _addLiquidityBNB(lockedBNB);
