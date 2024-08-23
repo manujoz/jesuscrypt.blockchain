@@ -326,7 +326,7 @@ contract JesusCryptPresale is IERC20, Ownable, JesusCryptUtils {
      * @param _liquidityLocker Address of the Liquidity Locker contract
      * @notice This function is used to set the Liquidity Locker contract, NOTE: this function must be called after setting the PancakeSwap position manager
      */
-    function setLiquidtyLocker(address _liquidityLocker) external onlyOwner {
+    function setLiquidityLocker(address _liquidityLocker) external onlyOwner {
         liquidityLocker = JesusCryptLiquidityLocker(_liquidityLocker);
         liquidityLocker.positionManager = address(positionManager);
     }
