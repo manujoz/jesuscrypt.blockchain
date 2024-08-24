@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.7.5;
+pragma experimental ABIEncoderV2;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract JesusCryptLiquidityLocker is Ownable {
+abstract contract JesusCryptLiquidityLocker is ERC20, Ownable {
     struct Lock {
         address token;
         uint256 amount;
@@ -13,16 +14,15 @@ contract JesusCryptLiquidityLocker is Ownable {
 
     Lock public liquidityLocked;
 
-    address public pancajePositionManager;
+    address public pancakePositionManager;
 
     event TokensLocked(address indexed token, uint256 amount, uint256 unlockTime);
     event TokensWithdrawn(address indexed token, uint256 amount);
 
-    constructor() Ownable(msg.sender) {}
+    constructor() Ownable() {}
 
     /**
      * @dev Lock liquidity
-     * @param _positionManager Position manager address
      * @param _tokenId Token ID
      * @param _unlockTIme Unlock time
      * @notice This function is used to lock liquidity
@@ -31,9 +31,9 @@ contract JesusCryptLiquidityLocker is Ownable {
         require(_tokenId > 0, "Amount must be greater than zero");
         require(_unlockTIme > block.timestamp, "Unlock time must be in the future");
 
-        liquidityLocked = Lock({token: pancajePositionManager, amount: _tokenId, unlockTime: _unlockTIme});
+        liquidityLocked = Lock({token: pancakePositionManager, amount: _tokenId, unlockTime: _unlockTIme});
 
-        emit TokensLocked(pancajePositionManager, _tokenId, _unlockTIme);
+        emit TokensLocked(pancakePositionManager, _tokenId, _unlockTIme);
     }
 
     /**
@@ -54,7 +54,6 @@ contract JesusCryptLiquidityLocker is Ownable {
 
     /**
      * @dev Withdraw liquidity from a locked token
-     * @param _index Index of the locked token
      * @notice This function is used to withdraw liquidity from a locked token, the token must be unlocked
      */
     function withdrawLiquidity() external onlyOwner {
@@ -74,7 +73,7 @@ contract JesusCryptLiquidityLocker is Ownable {
      * @return Lock[] Array of locked tokens
      * @notice This function is used to get locked tokens
      */
-    function getLiquidityLocked() external view returns (Lock[] memory) {
+    function getLiquidityLocked() external view returns (Lock memory) {
         return liquidityLocked;
     }
 }

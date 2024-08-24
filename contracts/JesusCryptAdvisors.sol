@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.7.5;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "./utils/JesusCryptUtils.sol";
 
-contract JesusCryptAdvisors is IERC20, Ownable {
-    uint256 public constant ADVISOR_MAX_PERCENT = 0.3;
-
+abstract contract JesusCryptAdvisors is IERC20, Ownable, JesusCryptUtils {
     IERC20 public jesusCryptToken;
 
-    uint256 public maxAmountForOneAdvisor = 0;
-    uint256 public maxAmountForAdvisors = 0;
+    uint256 public maxAmountForOneAdvisor;
+    uint256 public maxAmountForAdvisors;
 
     struct Advisor {
         uint256 amount;
@@ -22,7 +21,7 @@ contract JesusCryptAdvisors is IERC20, Ownable {
 
     uint256 private liquidityAddedTime = 0;
 
-    constructor(address _jesusCryptToken) Ownable(msg.sender) {
+    constructor(address _jesusCryptToken) Ownable() {
         jesusCryptToken = IERC20(_jesusCryptToken);
     }
 
@@ -91,12 +90,18 @@ contract JesusCryptAdvisors is IERC20, Ownable {
         uint256 balance = IERC20(jesusCryptToken).balanceOf(address(this));
         require(_amount <= balance, "Exceeds maximum advisors amount");
 
-        if (advisors[_to]) {
+        uint256 totalAmount = balance + _amount;
+
+        if (totalAmount > maxAmountForAdvisors) {
+            revert(string(abi.encodePacked("Exceeds maximum advisors amount 0.3% of the total supply. Current amount ", uint2str(balance), ", amount added ", uint2str(_amount))));
+        }
+
+        if (advisors[_to].amount > 0) {
             require(advisors[_to].amount + _amount <= maxAmountForOneAdvisor, "Exceeds maximum for an advisor 1,500,000,000 JSCP");
             advisors[_to].amount += _amount;
         } else {
             advisorsList.push(_to);
-            advisors[_to] = Advisors({amount: _amount, remainingAmount: _amount, unlockTime: 365 days});
+            advisors[_to] = Advisor({amount: _amount, remainingAmount: _amount, unlockTime: 365 days});
         }
 
         IERC20(jesusCryptToken).transfer(_to, _amount);
@@ -109,7 +114,7 @@ contract JesusCryptAdvisors is IERC20, Ownable {
      * @notice This function is used to update advisor amount
      */
     function updateAdvisor(address _advisor, uint256 _amount) public onlyOwner {
-        if (!advisors[_advisor] || advisors[_advisor].amount == 0) {
+        if (advisors[_advisor].amount == 0) {
             return;
         }
 
@@ -142,5 +147,10 @@ contract JesusCryptAdvisors is IERC20, Ownable {
         for (uint256 i = 0; i < advisorsList.length; i++) {
             advisors[advisorsList[i]].unlockTime = block.timestamp + 10 days;
         }
+    }
+
+    function setMaxAmounts(uint256 _maxAmountForOneAdvisor, uint256 _maxAmountForAdvisors) external onlyOwner {
+        maxAmountForOneAdvisor = _maxAmountForOneAdvisor;
+        maxAmountForAdvisors = _maxAmountForAdvisors;
     }
 }

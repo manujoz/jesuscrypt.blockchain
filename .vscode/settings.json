@@ -11,5 +11,6 @@
     "solidity-va.debug.parser.showExceptions": false,
     "solidity-va.outline.inheritance.show": true,
     "solidity-va.diagnostics.cdili_json.import": true,
-    "solidity-va.deco.warn.externalCalls": true
+    "solidity-va.deco.warn.externalCalls": true,
+    "solidity.compileUsingRemoteVersion": "v0.7.5+commit.eb77ed08"
 }

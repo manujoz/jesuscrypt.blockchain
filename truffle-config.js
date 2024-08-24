@@ -32,7 +32,7 @@ module.exports = {
     },
     compilers: {
         solc: {
-            version: "0.8.21", // Versión del compilador Solidity
+            version: "0.7.0", // Versión del compilador Solidity
         },
     },
 };

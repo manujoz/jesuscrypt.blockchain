@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.7.5;
 
 import "../interfaces/AggregatorV3Interface.sol";
 
@@ -10,6 +10,43 @@ contract JesusCryptUtils {
     constructor() {
         // Chainlink BNB/USDT price feed
         priceFeed = AggregatorV3Interface(CHAINLINK_BNB_USDT);
+    }
+
+    function _calculateDateComponents(uint256 d, int256 offset19700101) internal pure returns (uint256, uint256, uint256) {
+        int256 h = int256(d) + 68569 + offset19700101;
+        int256 n = (4 * h) / 146097;
+        h = h - (146097 * n + 3) / 4;
+        int256 _year = (4000 * (h + 1)) / 1461001;
+        h = h - (1461 * _year) / 4 + 31;
+        int256 _month = (80 * h) / 2447;
+        int256 _day = h - (2447 * _month) / 80;
+        h = _month / 11;
+        _month = _month + 2 - 12 * h;
+        _year = 100 * (n - 49) + _year + h;
+
+        uint256 year = uint256(_year);
+        uint256 month = uint256(_month);
+        uint256 day = uint256(_day);
+
+        return (year, month, day);
+    }
+
+    function _calculateTimeComponents(
+        uint256 _timestamp,
+        uint256 secondsPerDay,
+        uint256 secondsPerHour,
+        uint256 secondsPerMinute
+    ) internal pure returns (uint256, uint256, uint256, uint256) {
+        uint256 d = _timestamp / secondsPerDay;
+        uint256 secondsRemaining = _timestamp % secondsPerDay;
+
+        uint256 hour = secondsRemaining / secondsPerHour;
+        secondsRemaining = secondsRemaining % secondsPerHour;
+
+        uint256 minute = secondsRemaining / secondsPerMinute;
+        uint256 second = secondsRemaining % secondsPerMinute;
+
+        return (d, hour, minute, second);
     }
 
     /**
@@ -59,45 +96,45 @@ contract JesusCryptUtils {
         return uint256(price);
     }
 
-    /**
-     * @dev Parse a timestamp to a date
-     * @param _timestamp Timestamp to parse
-     * @return year Year of the timestamp
-     * @return month Month of the timestamp
-     * @return day Day of the timestamp
-     * @return hour Hour of the timestamp
-     * @return minute Minute of the timestamp
-     * @return second Second of the timestamp
-     * @notice This function is used to parse a timestamp to a date
-     */
-    function toDateTime(uint256 _timestamp) public pure returns (uint256 year, uint256 month, uint256 day, uint256 hour, uint256 minute, uint256 second) {
+    function toDateTime(uint256 _timestamp) public pure returns (uint256[] memory) {
         uint256 secondsPerDay = 24 * 60 * 60;
         uint256 secondsPerHour = 60 * 60;
         uint256 secondsPerMinute = 60;
         int256 offset19700101 = 2440588;
 
-        uint256 d = _timestamp / secondsPerDay;
-        uint256 secondsRemaining = _timestamp % secondsPerDay;
+        (uint256 d, uint256 hour, uint256 minute, uint256 second) = _calculateTimeComponents(_timestamp, secondsPerDay, secondsPerHour, secondsPerMinute);
+        (uint256 year, uint256 month, uint256 day) = _calculateDateComponents(d, offset19700101);
 
-        hour = secondsRemaining / secondsPerHour;
-        secondsRemaining = secondsRemaining % secondsPerHour;
+        uint256[] memory dateTime = new uint256[](6);
+        dateTime[0] = year;
+        dateTime[1] = month;
+        dateTime[2] = day;
+        dateTime[3] = hour;
+        dateTime[4] = minute;
+        dateTime[5] = second;
 
-        minute = secondsRemaining / secondsPerMinute;
-        second = secondsRemaining % secondsPerMinute;
+        return dateTime;
+    }
 
-        int256 h = int256(d) + 68569 + offset19700101;
-        int256 n = (4 * h) / 146097;
-        h = h - (146097 * n + 3) / 4;
-        int256 _year = (4000 * (h + 1)) / 1461001;
-        h = h - (1461 * _year) / 4 + 31;
-        int256 _month = (80 * h) / 2447;
-        int256 _day = h - (2447 * _month) / 80;
-        h = _month / 11;
-        _month = _month + 2 - 12 * h;
-        _year = 100 * (n - 49) + _year + h;
-
-        year = uint256(_year);
-        month = uint256(_month);
-        day = uint256(_day);
+    function uint2str(uint256 _i) internal pure returns (string memory) {
+        if (_i == 0) {
+            return "0";
+        }
+        uint256 j = _i;
+        uint256 length;
+        while (j != 0) {
+            length++;
+            j /= 10;
+        }
+        bytes memory bstr = new bytes(length);
+        uint256 k = length;
+        while (_i != 0) {
+            k = k - 1;
+            uint8 temp = (48 + uint8(_i - (_i / 10) * 10));
+            bytes1 b1 = bytes1(temp);
+            bstr[k] = b1;
+            _i /= 10;
+        }
+        return string(bstr);
     }
 }

@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.7.5;
+pragma abicoder v2;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@pancakeswap/v3-core/contracts/interfaces/IPancakeV3Pool.sol";
+import "@pancakeswap/v3-core/contracts/libraries/TickMath.sol";
 import "./interfaces/AggregatorV3Interface.sol";
 import "./utils/JesusCryptUtils.sol";
 import "./JesusCryptPresale.sol";
@@ -12,18 +14,17 @@ import "./JesusCryptAdvisors.sol";
 
 contract JesusCrypt is ERC20, Ownable, Pausable, JesusCryptUtils {
     // Initial supply of the token
-    uint256 public constant START_JSCP_PRICE = 0.00001;
-    uint256 public constant INITIAL_SUPPLY = 500_000_000_000 * 10 ** 8;
+    uint256 public constant INITIAL_SUPPLY = 500_000_000_000 * 10 ** 18;
 
     // Addresses of USDT, WBNB and Chainlink BNB/USDT price feed
     address public constant USDT_ADDRESS = 0x55d398326f99059fF775485246999027B3197955;
-    address public constant WBNB_ADDRESS = 0xBB4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c;
+    address public constant WBNB_ADDRESS = 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c;
 
     // Developers percent, presale max percent and marketing max percent tokenomics
     uint256 public constant DEVELOPERS_PERCENT = 15;
     uint256 public constant PRESALE_MAX_PERCENT = 35;
     uint256 public constant ADVISORS_MAX_PERCENT = 10;
-    uint256 public constant ADVISOR_MAX_PERCENT = 0.3;
+    uint256 public constant ADIVSORS_MAX_TOKENS = 1500000000 * 10 ** 18;
 
     // PancakeSwap properties, liquidity control and presale
     JesusCryptPresale public presale;
@@ -55,62 +56,23 @@ contract JesusCrypt is ERC20, Ownable, Pausable, JesusCryptUtils {
     // Events
     event TokensPurchasedPresale(address indexed purchaser, uint256 amountBNB, uint256 amountTokens);
     event PresaleStarted(uint256 currentRound, uint256 endTime, uint256 remainingTokens);
-    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
     /**
      * @dev Constructor function
-     * @param _positionManager Address of the PancakeSwap position manager
-     * @param _liquidityLocker Address of the liquidity locker
-     * @param _developers Array of developers addresses
      * @notice This function is used to initialize the contract
      */
-    constructor(address[] memory _developers) ERC20("JesusCrypt", "JSCP") Ownable(msg.sender) {
+    constructor() ERC20("JesusCrypt", "JSCP") Ownable() {
         // Mint the initial supply
         _mint(msg.sender, INITIAL_SUPPLY);
         approve(address(this), INITIAL_SUPPLY);
-
-        // Transfer 15% of the total supply to the developers
-        uint256 amountToDevs = (INITIAL_SUPPLY * DEVELOPERS_PERCENT) / 100 / _developers.length;
-        for (uint256 i = 0; i < _developers.length; i++) {
-            presale.presaleHolders[_developers[i]] = presale.PresaleHolders({
-                totalPresaleAmount: amountToDevs,
-                remainingAmount: amountToDevs,
-                unlockDate: block.timestamp + 365 days
-            });
-            presale.presaleHoldersList.push(_developers[i]);
-
-            _transfer(msg.sender, _developers[i], amountToDevs);
-        }
-
-        // Pause the contract till start trading date
-        pause("Trading is not allowed till 2024-10-10 00:00:00 UTC", presale.START_TRADING_DATE);
-    }
-
-    /**
-     * @dev Lock the remaining tokens
-     * @param _lockDuration Duration to lock the tokens
-     * @notice This function is used to lock the remaining owner tokens for 3 months
-     */
-    function _lockRemainingTokens() internal onlyOwner {
-        require(unlockDate > 0, "Tokens are already locked");
-
-        // Lock all owner's tokens for 3 months
-        unlockDate = block.timestamp + 3 * 30 days;
-        totalLockedTokens = balanceOf(owner());
-
-        if (totalLockedTokens == 0) {
-            revert("No tokens to lock");
-        }
-
-        require(transferFrom(owner(), address(this), totalLockedTokens), "Token transfer failed");
     }
 
     /**
      * @dev Update function to check if the caller is the PancakeSwap pair
      */
-    function _update(address _from, address _to, uint256 _value) internal override whenNotPaused {
+    function _beforeTokenTransfer(address _from, address _to, uint256 _value) internal override whenNotPaused {
         if (pairRules[_from].limited) {
-            PairRules memory rules = pairRules[_from] ? pairRules[_from] : pairRules[_to];
+            PairRules memory rules = pairRules[_from].limited ? pairRules[_from] : pairRules[_to];
             if (rules.limited) {
                 require(balanceOf(_to) + _value <= rules.maxHoldingAmount, "Exceeds maximum holding amount");
                 require(balanceOf(_to) + _value >= rules.minHoldingAmount, "Below minimum holding amount");
@@ -132,7 +94,25 @@ contract JesusCrypt is ERC20, Ownable, Pausable, JesusCryptUtils {
 
         _unlockTokens();
 
-        super._update(_from, _to, _value);
+        super._beforeTokenTransfer(_from, _to, _value);
+    }
+
+    /**
+     * @dev Lock the remaining tokens
+     * @notice This function is used to lock the remaining owner tokens for 3 months
+     */
+    function _lockRemainingTokens() internal onlyOwner {
+        require(unlockDate > 0, "Tokens are already locked");
+
+        // Lock all owner's tokens for 3 months
+        unlockDate = block.timestamp + 3 * 30 days;
+        totalLockedTokens = balanceOf(owner());
+
+        if (totalLockedTokens == 0) {
+            revert("No tokens to lock");
+        }
+
+        require(transferFrom(owner(), address(this), totalLockedTokens), "Token transfer failed");
     }
 
     /**
@@ -149,7 +129,7 @@ contract JesusCrypt is ERC20, Ownable, Pausable, JesusCryptUtils {
             amountToUnlock = tokensLocked;
         }
 
-        uint256 burnAmount = (amountToUnlock * 0.5) / 100;
+        uint256 burnAmount = (amountToUnlock * 1) / 100;
         uint256 reinvestAmount = amountToUnlock - burnAmount;
 
         _burn(address(this), burnAmount);
@@ -178,7 +158,8 @@ contract JesusCrypt is ERC20, Ownable, Pausable, JesusCryptUtils {
 
     /**
      * @dev Burn the specified amount of tokens from the caller
-     * @param amount Amount of tokens to burn
+     * @param _account Amount of tokens to burn
+     * @param _amount Amount of tokens to burn
      * @notice This function is used to burn the specified amount of tokens from the caller
      */
     function burn(address _account, uint256 _amount) public {
@@ -187,21 +168,12 @@ contract JesusCrypt is ERC20, Ownable, Pausable, JesusCryptUtils {
 
     /**
      * @dev Buy tokens with BNB or USDT
-     * @param isBNB True if the purchase is with BNB, false if it is with USDT
      * @notice This function is used to buy tokens with BNB or USDT
      */
     function buyPresaleTokens() external payable {
-        if (paused()) {
-            _unpause();
-        }
-
-        (presaleEnded, tokenAmount) = presale.buyPresaleTokens();
+        (, uint256 tokenAmount) = presale.buyPresaleTokens();
 
         emit TokensPurchasedPresale(msg.sender, msg.value > 0 ? msg.value : ERC20(USDT_ADDRESS).balanceOf(msg.sender), tokenAmount);
-
-        if (pauseReason != "" && !paused() && presaleEnded && presale.currentRound == 3) {
-            _pause();
-        }
     }
 
     /**
@@ -220,7 +192,10 @@ contract JesusCrypt is ERC20, Ownable, Pausable, JesusCryptUtils {
      */
     function getTokenPrice() public view returns (uint256) {
         IPancakeV3Pool bnbPool = IPancakeV3Pool(bnbPoolAddress);
-        (int56[] memory tickCumulative, , ) = bnbPool.observe([0, 1]);
+        uint32[] memory secondsAgo = new uint32[](2);
+        secondsAgo[0] = 0;
+        secondsAgo[1] = 1;
+        (int56[] memory tickCumulative, ) = bnbPool.observe(secondsAgo);
         int56 tickCumulativeDelta = tickCumulative[1] - tickCumulative[0];
         int24 tick = int24(tickCumulativeDelta);
 
@@ -237,7 +212,7 @@ contract JesusCrypt is ERC20, Ownable, Pausable, JesusCryptUtils {
      * @notice This function is used to get rules for the token like maximum and minimum holding amount
      */
     function getRules() public view returns (PairRules[] memory) {
-        PairRules[] memory rulesArray = new PairRules;
+        PairRules[] memory rulesArray;
         for (uint256 i = 0; i < pairRulesAddresses.length; i++) {
             rulesArray[i] = pairRules[pairRulesAddresses[i]];
         }
@@ -281,24 +256,32 @@ contract JesusCrypt is ERC20, Ownable, Pausable, JesusCryptUtils {
         advisors = JesusCryptAdvisors(_jesusCryptAdvisors);
 
         uint256 advisorsMaxAmount = (INITIAL_SUPPLY * ADVISORS_MAX_PERCENT) / 100;
-        uint256 advisorsMaxAmountForOneAdvisor = (INITIAL_SUPPLY * ADVISOR_MAX_PERCENT) / 100;
-        advisors.maxAmountForAdvisors = advisorsMaxAmount;
-        advisors.maxAmountForOneAdvisor = advisorsMaxAmountForOneAdvisor;
+        uint256 advisorsMaxAmountForOneAdvisor = ADIVSORS_MAX_TOKENS;
+
+        advisors.setMaxAmounts(advisorsMaxAmountForOneAdvisor, advisorsMaxAmount);
     }
 
     /**
      * @dev Set Presale contract
      * @param _presale Address of the Presale contract
+     * @param _developers Array of developers addresses
      * @notice This function is used to set the Presale contract
      */
-    function setPresale(address _presale) external onlyOwner {
+    function setPresale(address _presale, address[] memory _developers) external onlyOwner {
         presale = JesusCryptPresale(_presale);
 
         uint256 presaleMaxAmount = (INITIAL_SUPPLY * 25) / 100;
-        presale.maxAmount = presaleMaxAmount;
-        presale.remainingAmount = presaleMaxAmount;
+        presale.setAmounts(presaleMaxAmount, presaleMaxAmount);
 
         approve(_presale, balanceOf(owner()));
+
+        // Transfer 15% of the total supply to the developers
+        uint256 amountToDevs = (INITIAL_SUPPLY * DEVELOPERS_PERCENT) / 100 / _developers.length;
+        for (uint256 i = 0; i < _developers.length; i++) {
+            presale.addHolder(_developers[i], amountToDevs);
+
+            _transfer(msg.sender, _developers[i], amountToDevs);
+        }
     }
 
     /**
@@ -323,16 +306,14 @@ contract JesusCrypt is ERC20, Ownable, Pausable, JesusCryptUtils {
 
     /**
      * @dev Start the presale
-     * @param _rateBNB Number of tokens per BNB
-     * @param _rateUSDT Number of tokens per USDT
      * @param _duration Duration of the presale
      * @param _pancakeSwapPairBNB Address of the PancakeSwap pair with BNB
      * @param _pancakeSwapPairUSDT Address of the PancakeSwap pair with USDT
      * @notice This function is used to start the presale
      */
     function startPresale(uint256 _duration, address _pancakeSwapPairBNB, address _pancakeSwapPairUSDT) external onlyOwner {
-        presale.startPresale(_duration, _pancakeSwapPairBNB, _pancakeSwapPairUSDT);
-        emit PresaleStarted(presale.currentRound, presale.presaleHolders[presale.currentRound].endTime, presale.remainingAmount);
+        (uint256 currentRound, uint256 endTime, uint256 remainingAmount) = presale.startPresale(_duration, _pancakeSwapPairBNB, _pancakeSwapPairUSDT);
+        emit PresaleStarted(currentRound, endTime, remainingAmount);
     }
 
     /**

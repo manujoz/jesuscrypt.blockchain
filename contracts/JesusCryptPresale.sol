@@ -1,19 +1,20 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.7.5;
+pragma abicoder v2;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@pancakeswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol";
 import "./interfaces/IWBNB.sol";
 import "./utils/JesusCryptUtils.sol";
 import "./JesusCryptLiquidityLocker.sol";
 
-contract JesusCryptPresale is IERC20, Ownable, JesusCryptUtils {
-    uint256 public constant START_JSCP_PRICE = 0.00001;
+abstract contract JesusCryptPresale is ERC20, Ownable, JesusCryptUtils {
+    uint256 public constant START_JSCP_PRICE = 10 ** 13;
 
     // Addresses of USDT, WBNB and Chainlink BNB/USDT price feed
     address public constant USDT_ADDRESS = 0x55d398326f99059fF775485246999027B3197955;
-    address public constant WBNB_ADDRESS = 0xBB4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c;
+    address public constant WBNB_ADDRESS = 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c;
 
     uint256 public maxAmount = 0;
     uint256 public remainingAmount = 0;
@@ -44,21 +45,24 @@ contract JesusCryptPresale is IERC20, Ownable, JesusCryptUtils {
     mapping(address => PresaleHolders) public presaleHolders;
     address[] public presaleHoldersList;
 
-    constructor(address _jesusCryptToken) Ownable(msg.sender) {
+    constructor(address _jesusCryptToken) Ownable() {
         jesusCryptToken = IERC20(_jesusCryptToken);
+    }
+
+    function getPresaleRound() public view returns (PresaleRound memory) {
+        return presaleRounds[currentRound];
     }
 
     /**
      * @dev Add liquidity to the PancakeSwap V3 pool with BNB
-     * @param bnbAmount Amount of BNB to add
-     * @param tokenAmount Amount of tokens to add
+     * @param _bnbAmount Amount of BNB to add elevated to 18 decimals
      * @notice This function is used to add liquidity to the PancakeSwap V3 pool with BNB, after that the liquidity will be locked for 18 months
      */
     function _addLiquidityBNB(uint256 _bnbAmount) internal returns (address) {
         IWBNB(WBNB_ADDRESS).deposit{value: _bnbAmount}();
 
         uint256 bnbPriceInUSDT = getLatestBNBPrice();
-        uint256 bnbAmountInUSDT = (_bnbAmount * bnbPriceInUSDT) / 1e18;
+        uint256 bnbAmountInUSDT = _bnbAmount * bnbPriceInUSDT;
         uint256 tokenAmount = bnbAmountInUSDT / START_JSCP_PRICE;
 
         require(jesusCryptToken.transferFrom(owner(), address(this), tokenAmount), "Token transfer failed");
@@ -67,7 +71,7 @@ contract JesusCryptPresale is IERC20, Ownable, JesusCryptUtils {
         uint256 amount0Min = tokenAmount - ((tokenAmount * slippageTolerance) / 100);
         uint256 amount1Min = _bnbAmount - ((_bnbAmount * slippageTolerance) / 100);
 
-        uint160 sqrtPriceX96 = _calculateSqrtPriceX96(START_JSCP_PRICE * 1e18, true);
+        uint160 sqrtPriceX96 = _calculateSqrtPriceX96(START_JSCP_PRICE, true);
         address poolAddress = positionManager.createAndInitializePoolIfNecessary(address(this), WBNB_ADDRESS, 3000, sqrtPriceX96);
 
         (uint256 tokenId, , , ) = positionManager.mint(
@@ -93,8 +97,7 @@ contract JesusCryptPresale is IERC20, Ownable, JesusCryptUtils {
 
     /**
      * @dev Add liquidity to the PancakeSwap V3 pool with USDT
-     * @param usdtAmount Amount of USDT to add
-     * @param tokenAmount Amount of tokens to add
+     * @param _usdtAmount Amount of USDT to add, must be elevated to 18 decimals
      * @notice This function is used to add liquidity to the PancakeSwap V3 pool with USDT, after that the liquidity will be locked for 18 months
      */
     function _addLiquidityUSDT(uint256 _usdtAmount) internal returns (address) {
@@ -106,7 +109,7 @@ contract JesusCryptPresale is IERC20, Ownable, JesusCryptUtils {
         uint256 amount0Min = tokenAmount - ((tokenAmount * slippageTolerance) / 100);
         uint256 amount1Min = _usdtAmount - ((_usdtAmount * slippageTolerance) / 100);
 
-        uint160 sqrtPriceX96 = _calculateSqrtPriceX96(START_JSCP_PRICE * 1e18, false);
+        uint160 sqrtPriceX96 = _calculateSqrtPriceX96(START_JSCP_PRICE, false);
         address poolAddress = positionManager.createAndInitializePoolIfNecessary(address(this), USDT_ADDRESS, 3000, sqrtPriceX96);
 
         (uint256 tokenId, , , ) = positionManager.mint(
@@ -136,23 +139,23 @@ contract JesusCryptPresale is IERC20, Ownable, JesusCryptUtils {
      * @return uint256 Rate of USDT
      * @notice This function is used to get the presale rates
      */
-    function _getPresaleRates() internal returns (uint256, uint256) {
+    function _getPresaleRates() internal view returns (uint256, uint256) {
         uint256 bnbPrice = getLatestBNBPrice();
         uint256 rateBNB;
         uint256 rateUSDT;
 
         if (currentRound == 1) {
-            rateUSDT = 2.5;
-            rateBNB = (rateUSDT * 10 ** 8) / bnbPrice;
+            rateUSDT = 250;
+            rateBNB = (rateUSDT * 10 ** 6) / bnbPrice;
         } else if (currentRound == 2) {
-            rateUSDT = 2;
-            rateBNB = (rateUSDT * 10 ** 8) / bnbPrice;
+            rateUSDT = 200;
+            rateBNB = (rateUSDT * 10 ** 6) / bnbPrice;
         } else if (currentRound == 3) {
-            rateUSDT = 1.67;
-            rateBNB = (rateUSDT * 10 ** 8) / bnbPrice;
+            rateUSDT = 167;
+            rateBNB = (rateUSDT * 10 ** 6) / bnbPrice;
         }
 
-        return (rateBNB, rateUSDT);
+        return (rateBNB / 100, rateUSDT / 100);
     }
 
     /**
@@ -169,10 +172,24 @@ contract JesusCryptPresale is IERC20, Ownable, JesusCryptUtils {
     }
 
     /**
+     * @dev Add a presale holder
+     * @param _holder Address of the holder
+     * @param _amount Amount of tokens
+     * @notice This function is used to add a presale holder
+     */
+    function addHolder(address _holder, uint256 _amount) external {
+        require(_holder != address(0), "Invalid address");
+        require(_amount > 0, "Amount must be greater than zero");
+
+        presaleHolders[_holder] = PresaleHolders({totalPresaleAmount: _amount, remainingAmount: _amount, unlockDate: block.timestamp + 365 days});
+        presaleHoldersList.push(_holder);
+    }
+
+    /**
      * @dev Add liquidity to pancakeswa
      * @notice This function is used to add liquidity to PancakeSwap
      */
-    function addLiquidity() public onlyOwner returns (address bnbPool, address usdtPool) {
+    function addLiquidity() public onlyOwner returns (address, address) {
         require(!isPresaleActive(), "Presale has not ended yet");
 
         address bnbPool;
@@ -189,7 +206,7 @@ contract JesusCryptPresale is IERC20, Ownable, JesusCryptUtils {
 
         _updatePresaleHoldersLockTime();
 
-        revert(bnbPool, usdtPool);
+        return (bnbPool, usdtPool);
     }
 
     /**
@@ -209,7 +226,7 @@ contract JesusCryptPresale is IERC20, Ownable, JesusCryptUtils {
         );
 
         if (block.timestamp >= presaleRounds[currentRound].endTime) {
-            string message = "Current round has ended";
+            string memory message = "Current round has ended";
             if (!isPresaleActive()) {
                 message = "Presale has ended";
             }
@@ -226,7 +243,7 @@ contract JesusCryptPresale is IERC20, Ownable, JesusCryptUtils {
         uint256 tokenAmount;
         if (msg.value > 0) {
             (uint256 rateBNB, ) = _getPresaleRates();
-            tokenAmount = msg.value * rateBNB;
+            tokenAmount = msg.value * (rateBNB / 100);
             require(tokenAmount > remainingAmount, "Amount exceeds remaining tokens for presale");
             require(jesusCryptToken.transferFrom(owner(), msg.sender, tokenAmount), "Token transfer failed");
             lockedBNB += msg.value;
@@ -241,9 +258,8 @@ contract JesusCryptPresale is IERC20, Ownable, JesusCryptUtils {
 
         remainingAmount -= tokenAmount;
 
-        if (!presaleHolders[msg.sender]) {
-            presaleHolders[msg.sender] = PresaleHolders({totalPresaleAmount: tokenAmount, remainingAmount: tokenAmount, unlockDate: block.timestamp + 365 days});
-            presaleHoldersList.push(msg.sender);
+        if (presaleHolders[msg.sender].totalPresaleAmount == 0) {
+            this.addHolder(msg.sender, tokenAmount);
         } else {
             presaleHolders[msg.sender].totalPresaleAmount += tokenAmount;
             presaleHolders[msg.sender].remainingAmount += tokenAmount;
@@ -260,24 +276,46 @@ contract JesusCryptPresale is IERC20, Ownable, JesusCryptUtils {
     /**
      * @dev Check if the presale holder can transfer tokens
      * @param _holder Address of the holder
-     * @param _value Amount of tokens to transfer
+     * @param _amount Amount of tokens to transfer
      * @return bool Can transfer
      */
-    function canPresaleHolderTransfer(address _holder, uint256 _amount) public view returns (bool, string memory) {
+    function canPresaleHolderTransfer(address _holder, uint256 _amount) public returns (bool, string memory) {
         if (block.timestamp >= presaleHolders[_holder].unlockDate) {
-            uint256 maxAmount = (presaleHolders[_holder].totalPresaleAmount * 10) / 100;
-            if (_amount > maxAmount) {
-                return (false, "Exceeds maximum amount of tokens that can be transferred, you can only transfer 10% of the presale tokens at a time:" + maxAmount + " tokens");
+            uint256 maxTransferAmount = (presaleHolders[_holder].totalPresaleAmount * 10) / 100;
+            if (_amount > maxTransferAmount) {
+                string memory message = string(
+                    abi.encodePacked(
+                        "Exceeds maximum amount of tokens that can be transferred, you can only transfer 10% of the presale tokens at a time:",
+                        maxTransferAmount,
+                        " tokens"
+                    )
+                );
+                return (false, message);
             }
 
-            uint256 memory remainingAmount = _amount > presaleHolders[_holder].remainingAmount ? 0 : presaleHolders[_holder].remainingAmount - _amount;
+            uint256 remainingHolderAmount = _amount > presaleHolders[_holder].remainingAmount ? 0 : presaleHolders[_holder].remainingAmount - _amount;
             presaleHolders[_holder].unlockDate = presaleHolders[_holder].unlockDate + 7 days;
-            presaleHolders[_holder].remainingAmount = remainingAmount;
+            presaleHolders[_holder].remainingAmount = remainingHolderAmount;
         } else {
-            untilDate = toDateTime(presaleHolders[_holder].unlockDate);
+            uint256[] memory untilDate = toDateTime(presaleHolders[_holder].unlockDate);
             return (
                 false,
-                "Presale tokens are still locked until " + untilDate[0] + "-" + untilDate[1] + "-" + untilDate[2] + " " + untilDate[3] + ":" + untilDate[4] + ":" + untilDate[5]
+                string(
+                    abi.encodePacked(
+                        "Presale tokens are still locked until ",
+                        untilDate[0],
+                        "-",
+                        untilDate[1],
+                        "-",
+                        untilDate[2],
+                        " ",
+                        untilDate[3],
+                        ":",
+                        untilDate[4],
+                        ":",
+                        untilDate[5]
+                    )
+                )
             );
         }
 
@@ -313,6 +351,17 @@ contract JesusCryptPresale is IERC20, Ownable, JesusCryptUtils {
     }
 
     /**
+     * @dev Set amounts
+     * @param _maxAmount Maximum amount of tokens
+     * @param _remainingAmount Remaining amount of tokens
+     * @notice This function is used to set the amounts
+     */
+    function setAmounts(uint256 _maxAmount, uint256 _remainingAmount) external onlyOwner {
+        maxAmount = _maxAmount;
+        remainingAmount = _remainingAmount;
+    }
+
+    /**
      * @dev Set PancakeSwap position manager
      * @param _positionManager Address of the PancakeSwap position manager
      * @notice This function is used to set the PancakeSwap position manager
@@ -328,29 +377,29 @@ contract JesusCryptPresale is IERC20, Ownable, JesusCryptUtils {
      */
     function setLiquidityLocker(address _liquidityLocker) external onlyOwner {
         liquidityLocker = JesusCryptLiquidityLocker(_liquidityLocker);
-        liquidityLocker.positionManager = address(positionManager);
     }
 
     /**
      * @dev Start the presale
-     * @param _rateBNB Number of tokens per BNB
-     * @param _rateUSDT Number of tokens per USDT
      * @param _duration Duration of the presale
      * @param _pancakeSwapPairBNB Address of the PancakeSwap pair with BNB
      * @param _pancakeSwapPairUSDT Address of the PancakeSwap pair with USDT
+     * @return uint256 Current round
+     * @return uint256 Duration
+     * @return uint256 Remaining amount
      * @notice This function is used to start the presale
      */
-    function startPresale(uint256 _duration, address _pancakeSwapPairBNB, address _pancakeSwapPairUSDT) external onlyOwner {
+    function startPresale(uint256 _duration, address _pancakeSwapPairBNB, address _pancakeSwapPairUSDT) external onlyOwner returns (uint256, uint256, uint256) {
         require(_duration > 0, "Duration must be greater than zero");
         require(_pancakeSwapPairBNB != address(0), "PancakeSwap pair must be set");
         require(_pancakeSwapPairUSDT != address(0), "PancakeSwap pair must be set");
         require(remainingAmount > 0, "All presale tokens have been sold");
 
-        if (currentRound > 0 && block.timestamp > presalesRounds[currentRound].endTime) {
+        if (currentRound > 0 && block.timestamp > presaleRounds[currentRound].endTime) {
             revert("Can't start a new round before the current one ends");
         }
 
-        (, rateUSDT) = _getPresaleRates();
+        (, uint256 rateUSDT) = _getPresaleRates();
 
         // Set presale start time
         if (presaleStartTime == 0) {
@@ -363,6 +412,8 @@ contract JesusCryptPresale is IERC20, Ownable, JesusCryptUtils {
         presaleRounds[currentRound] = PresaleRound({rateUSDT: rateUSDT, endTime: block.timestamp + _duration});
         pancakeSwapPairBNB = _pancakeSwapPairBNB;
         pancakeSwapPairUSDT = _pancakeSwapPairUSDT;
+
+        return (currentRound, _duration, remainingAmount);
     }
 
     /**
