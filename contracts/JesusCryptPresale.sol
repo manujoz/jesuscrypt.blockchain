@@ -21,7 +21,7 @@ abstract contract JesusCryptPresale is ERC20, Ownable, JesusCryptUtils {
     uint256 public lockedBNB = 0;
     uint256 public lockedUSDT = 0;
 
-    IERC20 public jesusCryptToken;
+    ERC20 public jesusCryptToken;
     INonfungiblePositionManager public positionManager;
     JesusCryptLiquidityLocker public liquidityLocker;
 
@@ -46,7 +46,7 @@ abstract contract JesusCryptPresale is ERC20, Ownable, JesusCryptUtils {
     address[] public presaleHoldersList;
 
     constructor(address _jesusCryptToken) Ownable() {
-        jesusCryptToken = IERC20(_jesusCryptToken);
+        jesusCryptToken = ERC20(_jesusCryptToken);
     }
 
     function getPresaleRound() public view returns (PresaleRound memory) {
@@ -217,7 +217,7 @@ abstract contract JesusCryptPresale is ERC20, Ownable, JesusCryptUtils {
      */
     function buyPresaleTokens() external payable returns (bool, uint256) {
         require(currentRound <= 3, "Presale has ended");
-        require(msg.value > 0 || IERC20(USDT_ADDRESS).balanceOf(msg.sender) > 0, "Amount must be greater than zero");
+        require(msg.value > 0 || ERC20(USDT_ADDRESS).balanceOf(msg.sender) > 0, "Amount must be greater than zero");
 
         // Balance must be less than 1,000,000,000 JSCP
         require(
@@ -248,10 +248,10 @@ abstract contract JesusCryptPresale is ERC20, Ownable, JesusCryptUtils {
             require(jesusCryptToken.transferFrom(owner(), msg.sender, tokenAmount), "Token transfer failed");
             lockedBNB += msg.value;
         } else {
-            uint256 usdtAmount = IERC20(USDT_ADDRESS).balanceOf(msg.sender);
+            uint256 usdtAmount = ERC20(USDT_ADDRESS).balanceOf(msg.sender);
             tokenAmount = usdtAmount * presaleRounds[currentRound].rateUSDT;
             require(tokenAmount > remainingAmount, "Amount exceeds remaining tokens for presale");
-            require(IERC20(USDT_ADDRESS).transferFrom(msg.sender, address(this), usdtAmount), "USDT transfer failed");
+            require(ERC20(USDT_ADDRESS).transferFrom(msg.sender, address(this), usdtAmount), "USDT transfer failed");
             require(jesusCryptToken.transferFrom(owner(), msg.sender, tokenAmount), "Token transfer failed");
             lockedUSDT += usdtAmount;
         }

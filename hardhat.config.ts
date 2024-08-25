@@ -1,14 +1,20 @@
-require("@nomiclabs/hardhat-waffle");
-require("@nomiclabs/hardhat-ethers");
-require("dotenv").config();
+import type { TypechainUserConfig } from "@typechain/hardhat/dist/types";
+
+import "@nomiclabs/hardhat-ethers";
+import "@nomiclabs/hardhat-waffle";
+import "@typechain/hardhat";
+import { HardhatUserConfig } from "hardhat/config";
+
+import dotenv from "dotenv";
+dotenv.config();
 
 const { mnemonic } = process.env;
 
-module.exports = {
+const config: HardhatUserConfig & { typechain: TypechainUserConfig } = {
     solidity: {
         compilers: [
             {
-                version: "0.7.5", // Versión del compilador Solidity
+                version: "0.7.5",
                 settings: {
                     optimizer: {
                         enabled: true,
@@ -17,6 +23,10 @@ module.exports = {
                 },
             },
         ],
+    },
+    typechain: {
+        outDir: "typechain",
+        target: "ethers-v5",
     },
     networks: {
         development: {
@@ -39,3 +49,5 @@ module.exports = {
         },
     },
 };
+
+export default config;
