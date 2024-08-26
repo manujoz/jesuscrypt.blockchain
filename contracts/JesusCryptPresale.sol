@@ -49,6 +49,7 @@ contract JesusCryptPresale is Ownable {
 
     constructor(address _jesusCryptToken) Ownable() {
         jesusCryptToken = ERC20(_jesusCryptToken);
+        transferOwnership(_jesusCryptToken);
     }
 
     /**

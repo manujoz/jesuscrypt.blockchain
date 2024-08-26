@@ -19,7 +19,9 @@ contract JesusCryptLiquidityLocker is Ownable {
     event TokensLocked(address indexed token, uint256 amount, uint256 unlockTime);
     event TokensWithdrawn(address indexed token, uint256 amount);
 
-    constructor() Ownable() {}
+    constructor(address _jesusCryptPresale) Ownable() {
+        transferOwnership(_jesusCryptPresale);
+    }
 
     function getUnlockTime() external view returns (uint256) {
         return liquidityLocked.unlockTime;

@@ -277,7 +277,7 @@ contract JesusCrypt is ERC20, Ownable, Pausable {
      * @param _developers Array of developers addresses
      * @notice This function is used to set the Presale contract
      */
-    function setPresale(address _presale, address[] memory _developers) external onlyOwner {
+    function setPresale(address _presale, address _liquidityLocker, address _positionManager, address[] memory _developers) external onlyOwner {
         presale = JesusCryptPresale(_presale);
 
         uint256 presaleMaxAmount = (INITIAL_SUPPLY * 25) / 100;
@@ -292,6 +292,9 @@ contract JesusCrypt is ERC20, Ownable, Pausable {
 
             _transfer(msg.sender, _developers[i], amountToDevs);
         }
+
+        presale.setPancakeSwapPositionManager(_positionManager);
+        presale.setLiquidityLocker(_liquidityLocker);
     }
 
     /**
