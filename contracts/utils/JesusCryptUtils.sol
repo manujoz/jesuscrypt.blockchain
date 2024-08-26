@@ -3,14 +3,8 @@ pragma solidity ^0.7.5;
 
 import "../interfaces/AggregatorV3Interface.sol";
 
-contract JesusCryptUtils {
+library JesusCryptUtils {
     address public constant CHAINLINK_BNB_USDT = 0x0567F2323251f0Aab15c8dFb1967E4e8A7D42aeE;
-    AggregatorV3Interface internal priceFeed;
-
-    constructor() {
-        // Chainlink BNB/USDT price feed
-        priceFeed = AggregatorV3Interface(CHAINLINK_BNB_USDT);
-    }
 
     function _calculateDateComponents(uint256 d, int256 offset19700101) internal pure returns (uint256, uint256, uint256) {
         int256 h = int256(d) + 68569 + offset19700101;
@@ -92,6 +86,7 @@ contract JesusCryptUtils {
      * @notice This function is used to get the latest BNB price
      */
     function getLatestBNBPrice() public view returns (uint256) {
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(CHAINLINK_BNB_USDT);
         (, int256 price, , , ) = priceFeed.latestRoundData();
         return uint256(price);
     }

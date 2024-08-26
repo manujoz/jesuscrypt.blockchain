@@ -1,13 +1,15 @@
 {
     "compilerOptions": {
-      "target": "es6",
       "module": "commonjs",
+      "target": "ESNext",
       "strict": true,
+      "allowSyntheticDefaultImports": true,
       "esModuleInterop": true,
-      "skipLibCheck": true,
       "forceConsistentCasingInFileNames": true,
-      "outDir": "dist",
+      "moduleResolution": "node",
+      "skipLibCheck": true,
+      "outDir": "dist"
     },
-    "include": ["./scripts", "./test", "./typechain"],
-    "files": ["./hardhat.config.ts"]
+    "include": ["./scripts", "./test", "./typechain", "./hardhat.config.cjs"],
+    "files": ["./hardhat.config.cjs"]
   }

@@ -1,16 +1,18 @@
-import type { TypechainUserConfig } from "@typechain/hardhat/dist/types";
+// import "@nomiclabs/hardhat-ethers";
+// import "@nomiclabs/hardhat-waffle";
+// import "@typechain/hardhat";
+// import dotenv from "dotenv";
 
-import "@nomiclabs/hardhat-ethers";
-import "@nomiclabs/hardhat-waffle";
-import "@typechain/hardhat";
-import { HardhatUserConfig } from "hardhat/config";
+require("@nomiclabs/hardhat-ethers");
+require("@nomiclabs/hardhat-waffle");
+require("@typechain/hardhat");
+const dotenv = require("dotenv");
 
-import dotenv from "dotenv";
 dotenv.config();
 
 const { mnemonic } = process.env;
 
-const config: HardhatUserConfig & { typechain: TypechainUserConfig } = {
+const config = {
     solidity: {
         compilers: [
             {
@@ -50,4 +52,4 @@ const config: HardhatUserConfig & { typechain: TypechainUserConfig } = {
     },
 };
 
-export default config;
+module.exports = config;

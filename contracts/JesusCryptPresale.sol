@@ -9,7 +9,9 @@ import "./interfaces/IWBNB.sol";
 import "./utils/JesusCryptUtils.sol";
 import "./JesusCryptLiquidityLocker.sol";
 
-abstract contract JesusCryptPresale is ERC20, Ownable, JesusCryptUtils {
+contract JesusCryptPresale is ERC20, Ownable {
+    using JesusCryptUtils for *;
+
     uint256 public constant START_JSCP_PRICE = 10 ** 13;
 
     // Addresses of USDT, WBNB and Chainlink BNB/USDT price feed
@@ -61,7 +63,7 @@ abstract contract JesusCryptPresale is ERC20, Ownable, JesusCryptUtils {
     function _addLiquidityBNB(uint256 _bnbAmount) internal returns (address) {
         IWBNB(WBNB_ADDRESS).deposit{value: _bnbAmount}();
 
-        uint256 bnbPriceInUSDT = getLatestBNBPrice();
+        uint256 bnbPriceInUSDT = JesusCryptUtils.getLatestBNBPrice();
         uint256 bnbAmountInUSDT = _bnbAmount * bnbPriceInUSDT;
         uint256 tokenAmount = bnbAmountInUSDT / START_JSCP_PRICE;
 
@@ -71,7 +73,7 @@ abstract contract JesusCryptPresale is ERC20, Ownable, JesusCryptUtils {
         uint256 amount0Min = tokenAmount - ((tokenAmount * slippageTolerance) / 100);
         uint256 amount1Min = _bnbAmount - ((_bnbAmount * slippageTolerance) / 100);
 
-        uint160 sqrtPriceX96 = _calculateSqrtPriceX96(START_JSCP_PRICE, true);
+        uint160 sqrtPriceX96 = JesusCryptUtils._calculateSqrtPriceX96(START_JSCP_PRICE, true);
         address poolAddress = positionManager.createAndInitializePoolIfNecessary(address(this), WBNB_ADDRESS, 3000, sqrtPriceX96);
 
         (uint256 tokenId, , , ) = positionManager.mint(
