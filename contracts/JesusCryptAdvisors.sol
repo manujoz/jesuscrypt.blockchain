@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.7.5;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./utils/JesusCryptUtils.sol";
+import "./lib/JesusCryptUtils.sol";
 
-abstract contract JesusCryptAdvisors is IERC20, Ownable, JesusCryptUtils {
-    IERC20 public jesusCryptToken;
+contract JesusCryptAdvisors is Ownable {
+    using JesusCryptUtils for *;
+    ERC20 public jesusCryptToken;
 
     uint256 public maxAmountForOneAdvisor;
     uint256 public maxAmountForAdvisors;
@@ -22,7 +23,7 @@ abstract contract JesusCryptAdvisors is IERC20, Ownable, JesusCryptUtils {
     uint256 private liquidityAddedTime = 0;
 
     constructor(address _jesusCryptToken) Ownable() {
-        jesusCryptToken = IERC20(_jesusCryptToken);
+        jesusCryptToken = ERC20(_jesusCryptToken);
     }
 
     /**
@@ -87,13 +88,22 @@ abstract contract JesusCryptAdvisors is IERC20, Ownable, JesusCryptUtils {
     function transferToAdvisor(address _to, uint256 _amount) public onlyOwner {
         require(_to != address(0), "ERC20: transfer to the zero address");
 
-        uint256 balance = IERC20(jesusCryptToken).balanceOf(address(this));
+        uint256 balance = ERC20(jesusCryptToken).balanceOf(address(this));
         require(_amount <= balance, "Exceeds maximum advisors amount");
 
         uint256 totalAmount = balance + _amount;
 
         if (totalAmount > maxAmountForAdvisors) {
-            revert(string(abi.encodePacked("Exceeds maximum advisors amount 0.3% of the total supply. Current amount ", uint2str(balance), ", amount added ", uint2str(_amount))));
+            revert(
+                string(
+                    abi.encodePacked(
+                        "Exceeds maximum advisors amount 0.3% of the total supply. Current amount ",
+                        JesusCryptUtils.uint2str(balance),
+                        ", amount added ",
+                        JesusCryptUtils.uint2str(_amount)
+                    )
+                )
+            );
         }
 
         if (advisors[_to].amount > 0) {
@@ -104,7 +114,7 @@ abstract contract JesusCryptAdvisors is IERC20, Ownable, JesusCryptUtils {
             advisors[_to] = Advisor({amount: _amount, remainingAmount: _amount, unlockTime: 365 days});
         }
 
-        IERC20(jesusCryptToken).transfer(_to, _amount);
+        ERC20(jesusCryptToken).transfer(_to, _amount);
     }
 
     /**
@@ -133,9 +143,9 @@ abstract contract JesusCryptAdvisors is IERC20, Ownable, JesusCryptUtils {
 
         liquidityAddedTime = block.timestamp;
 
-        uint256 balance = IERC20(jesusCryptToken).balanceOf(address(this));
+        uint256 balance = ERC20(jesusCryptToken).balanceOf(address(this));
         if (balance > 0) {
-            IERC20(jesusCryptToken).transfer(address(jesusCryptToken), balance);
+            ERC20(jesusCryptToken).transfer(address(jesusCryptToken), balance);
         }
     }
 

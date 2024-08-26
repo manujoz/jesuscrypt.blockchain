@@ -5,7 +5,7 @@ pragma experimental ABIEncoderV2;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-abstract contract JesusCryptLiquidityLocker is ERC20, Ownable {
+contract JesusCryptLiquidityLocker is Ownable {
     struct Lock {
         address token;
         uint256 amount;
@@ -21,6 +21,10 @@ abstract contract JesusCryptLiquidityLocker is ERC20, Ownable {
 
     constructor() Ownable() {}
 
+    function getUnlockTime() external view returns (uint256) {
+        return liquidityLocked.unlockTime;
+    }
+
     /**
      * @dev Lock liquidity
      * @param _tokenId Token ID
@@ -34,22 +38,6 @@ abstract contract JesusCryptLiquidityLocker is ERC20, Ownable {
         liquidityLocked = Lock({token: pancakePositionManager, amount: _tokenId, unlockTime: _unlockTIme});
 
         emit TokensLocked(pancakePositionManager, _tokenId, _unlockTIme);
-    }
-
-    /**
-     * @dev Transfer tokens
-     * @param _to Address to transfer tokens to
-     * @param _value Amount of tokens to transfer
-     * @return bool Transfer successful
-     * @notice This function avoid withdraw LP tokens until the unlock time
-     */
-    function transfer(address _to, uint256 _value) public override returns (bool) {
-        if (msg.sender != address(this)) {
-            return super.transfer(_to, _value);
-        } else {
-            require(block.timestamp >= liquidityLocked.unlockTime, "Transfers not allowed because liquidity is locked");
-            return super.transfer(_to, _value);
-        }
     }
 
     /**

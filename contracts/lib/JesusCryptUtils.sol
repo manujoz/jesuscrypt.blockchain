@@ -49,15 +49,15 @@ library JesusCryptUtils {
      * @param _getForWBNB True if the price is for WBNB, false if it is for USDT
      * @return uint160 SQRT price
      */
-    function _calculateSqrtPriceX96(uint256 _jsctPriceInUSDT, bool _getForWBNB) internal view returns (uint160) {
+    function calculateSqrtPriceX96(uint256 _jsctPriceInUSDT, bool _getForWBNB) internal view returns (uint160) {
         uint256 sqrtPriceX96;
 
         if (_getForWBNB) {
             uint256 bnbPriceInUSDT = getLatestBNBPrice();
             uint256 jsctPriceInBNB = (_jsctPriceInUSDT * 1e18) / bnbPriceInUSDT;
-            sqrtPriceX96 = _sqrt(jsctPriceInBNB) * 2 ** 96;
+            sqrtPriceX96 = sqrt(jsctPriceInBNB) * 2 ** 96;
         } else {
-            sqrtPriceX96 = _sqrt(_jsctPriceInUSDT) * 2 ** 96;
+            sqrtPriceX96 = sqrt(_jsctPriceInUSDT) * 2 ** 96;
         }
 
         return uint160(sqrtPriceX96);
@@ -69,7 +69,7 @@ library JesusCryptUtils {
      * @return y Square root of the number
      * @notice This function is used to get the square root of a number
      */
-    function _sqrt(uint256 _x) internal pure returns (uint256 y) {
+    function sqrt(uint256 _x) internal pure returns (uint256 y) {
         uint256 z = (_x + 1) / 2;
         y = _x;
         while (z < y) {

@@ -8,11 +8,13 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@pancakeswap/v3-core/contracts/interfaces/IPancakeV3Pool.sol";
 import "@pancakeswap/v3-core/contracts/libraries/TickMath.sol";
 import "./interfaces/AggregatorV3Interface.sol";
-import "./utils/JesusCryptUtils.sol";
+import "./lib/JesusCryptUtils.sol";
 import "./JesusCryptPresale.sol";
 import "./JesusCryptAdvisors.sol";
 
-contract JesusCrypt is ERC20, Ownable, Pausable, JesusCryptUtils {
+contract JesusCrypt is ERC20, Ownable, Pausable {
+    using JesusCryptUtils for *;
+
     // Initial supply of the token
     uint256 public constant INITIAL_SUPPLY = 500_000_000_000 * 10 ** 18;
 
@@ -77,6 +79,14 @@ contract JesusCrypt is ERC20, Ownable, Pausable, JesusCryptUtils {
                 require(balanceOf(_to) + _value <= rules.maxHoldingAmount, "Exceeds maximum holding amount");
                 require(balanceOf(_to) + _value >= rules.minHoldingAmount, "Below minimum holding amount");
             }
+        }
+
+        if (_from == address(presale) && !presale.isPresaleEnded()) {
+            revert("Transfers not allowed until presale ends");
+        }
+
+        if (_from == presale.getLiquididtyLockerAddress() && block.timestamp < presale.getLiquidityLockerUnlockTime()) {
+            revert("Transfers not allowed because liquidity is locked");
         }
 
         if (presale.isPresaleHolder(_from)) {
@@ -201,7 +211,7 @@ contract JesusCrypt is ERC20, Ownable, Pausable, JesusCryptUtils {
 
         uint160 sqrtPriceX96 = TickMath.getSqrtRatioAtTick(tick);
         uint256 jscpBnbPrice = (uint256(sqrtPriceX96) * uint256(sqrtPriceX96)) / (1 << 192);
-        uint256 bnbUsdtPrice = getLatestBNBPrice();
+        uint256 bnbUsdtPrice = JesusCryptUtils.getLatestBNBPrice();
 
         return jscpBnbPrice * bnbUsdtPrice;
     }

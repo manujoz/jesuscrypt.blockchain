@@ -6,10 +6,10 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@pancakeswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol";
 import "./interfaces/IWBNB.sol";
-import "./utils/JesusCryptUtils.sol";
+import "./lib/JesusCryptUtils.sol";
 import "./JesusCryptLiquidityLocker.sol";
 
-contract JesusCryptPresale is ERC20, Ownable {
+contract JesusCryptPresale is Ownable {
     using JesusCryptUtils for *;
 
     uint256 public constant START_JSCP_PRICE = 10 ** 13;
@@ -51,10 +51,6 @@ contract JesusCryptPresale is ERC20, Ownable {
         jesusCryptToken = ERC20(_jesusCryptToken);
     }
 
-    function getPresaleRound() public view returns (PresaleRound memory) {
-        return presaleRounds[currentRound];
-    }
-
     /**
      * @dev Add liquidity to the PancakeSwap V3 pool with BNB
      * @param _bnbAmount Amount of BNB to add elevated to 18 decimals
@@ -73,7 +69,7 @@ contract JesusCryptPresale is ERC20, Ownable {
         uint256 amount0Min = tokenAmount - ((tokenAmount * slippageTolerance) / 100);
         uint256 amount1Min = _bnbAmount - ((_bnbAmount * slippageTolerance) / 100);
 
-        uint160 sqrtPriceX96 = JesusCryptUtils._calculateSqrtPriceX96(START_JSCP_PRICE, true);
+        uint160 sqrtPriceX96 = JesusCryptUtils.calculateSqrtPriceX96(START_JSCP_PRICE, true);
         address poolAddress = positionManager.createAndInitializePoolIfNecessary(address(this), WBNB_ADDRESS, 3000, sqrtPriceX96);
 
         (uint256 tokenId, , , ) = positionManager.mint(
@@ -111,7 +107,7 @@ contract JesusCryptPresale is ERC20, Ownable {
         uint256 amount0Min = tokenAmount - ((tokenAmount * slippageTolerance) / 100);
         uint256 amount1Min = _usdtAmount - ((_usdtAmount * slippageTolerance) / 100);
 
-        uint160 sqrtPriceX96 = _calculateSqrtPriceX96(START_JSCP_PRICE, false);
+        uint160 sqrtPriceX96 = JesusCryptUtils.calculateSqrtPriceX96(START_JSCP_PRICE, false);
         address poolAddress = positionManager.createAndInitializePoolIfNecessary(address(this), USDT_ADDRESS, 3000, sqrtPriceX96);
 
         (uint256 tokenId, , , ) = positionManager.mint(
@@ -142,7 +138,7 @@ contract JesusCryptPresale is ERC20, Ownable {
      * @notice This function is used to get the presale rates
      */
     function _getPresaleRates() internal view returns (uint256, uint256) {
-        uint256 bnbPrice = getLatestBNBPrice();
+        uint256 bnbPrice = JesusCryptUtils.getLatestBNBPrice();
         uint256 rateBNB;
         uint256 rateUSDT;
 
@@ -299,7 +295,7 @@ contract JesusCryptPresale is ERC20, Ownable {
             presaleHolders[_holder].unlockDate = presaleHolders[_holder].unlockDate + 7 days;
             presaleHolders[_holder].remainingAmount = remainingHolderAmount;
         } else {
-            uint256[] memory untilDate = toDateTime(presaleHolders[_holder].unlockDate);
+            uint256[] memory untilDate = JesusCryptUtils.toDateTime(presaleHolders[_holder].unlockDate);
             return (
                 false,
                 string(
@@ -325,6 +321,33 @@ contract JesusCryptPresale is ERC20, Ownable {
     }
 
     /**
+     * @dev Get presale round
+     * @return PresaleRound Presale round
+     * @notice This function is used to get the presale round
+     */
+    function getPresaleRound() public view returns (PresaleRound memory) {
+        return presaleRounds[currentRound];
+    }
+
+    /**
+     * @dev Get liquidity locker unlock time
+     * @return uint256 Unlock time
+     * @notice This function is used to get the liquidity locker unlock time
+     */
+    function getLiquidityLockerUnlockTime() public view returns (uint256) {
+        return liquidityLocker.getUnlockTime();
+    }
+
+    /**
+     * @dev Get liquidity locker address
+     * @return address PancakeSwap position manager address
+     * @notice This function is used to get the liquidity locker address
+     */
+    function getLiquididtyLockerAddress() public view returns (address) {
+        return address(liquidityLocker);
+    }
+
+    /**
      * @dev Check if the presale has ended
      * @return bool Presale ended
      * @notice This function is used to check if the presale has ended
@@ -340,6 +363,15 @@ contract JesusCryptPresale is ERC20, Ownable {
         }
 
         return true;
+    }
+
+    /**
+     * @dev Check if the presale has ended
+     * @return bool Presale ended
+     * @notice This function is used to check if the presale has ended
+     */
+    function isPresaleEnded() public view returns (bool) {
+        return allPresaleRoundsEnded;
     }
 
     /**
@@ -416,38 +448,5 @@ contract JesusCryptPresale is ERC20, Ownable {
         pancakeSwapPairUSDT = _pancakeSwapPairUSDT;
 
         return (currentRound, _duration, remainingAmount);
-    }
-
-    /**
-     * @dev Transfer tokens
-     * @param _to Address to transfer tokens to
-     * @param _value Amount of tokens to transfer
-     * @return bool Transfer successful
-     * @notice This function avoid withdraw founds until the presale ends
-     */
-    function transfer(address _to, uint256 _value) public override returns (bool) {
-        if (msg.sender != address(this)) {
-            return super.transfer(_to, _value);
-        } else {
-            require(allPresaleRoundsEnded, "Transfers not allowed until presale ends");
-            return super.transfer(_to, _value);
-        }
-    }
-
-    /**
-     * @dev Transfer tokens from
-     * @param _sender Address to transfer tokens from
-     * @param _recipient Address to transfer tokens to
-     * @param _amount Amount of tokens to transfer
-     * @return bool Transfer successful
-     * @notice This function block withdraw founcs until the presale ends
-     */
-    function transferFrom(address _sender, address _recipient, uint256 _amount) public override returns (bool) {
-        if (_sender != address(this)) {
-            return super.transferFrom(_sender, _recipient, _amount);
-        } else {
-            require(allPresaleRoundsEnded, "Transfers not allowed until presale ends");
-            return super.transferFrom(_sender, _recipient, _amount);
-        }
     }
 }
