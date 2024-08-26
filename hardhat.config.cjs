@@ -1,8 +1,3 @@
-// import "@nomiclabs/hardhat-ethers";
-// import "@nomiclabs/hardhat-waffle";
-// import "@typechain/hardhat";
-// import dotenv from "dotenv";
-
 require("@nomiclabs/hardhat-ethers");
 require("@nomiclabs/hardhat-waffle");
 require("@typechain/hardhat");
