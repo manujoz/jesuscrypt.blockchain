@@ -29,6 +29,7 @@ const config = {
         development: {
             url: "http://127.0.0.1:8545",
             chainId: 1337,
+            gas: 6000000,
         },
         bscTestnet: {
             url: `https://data-seed-prebsc-1-s1.binance.org:8545`,

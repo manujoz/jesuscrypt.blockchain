@@ -1,20 +1,22 @@
-import type { JesusCrypt } from "../typechain/contracts/JesusCrypt";
-import type { JesusCryptAdvisors } from "../typechain/contracts/JesusCryptAdvisors";
-import type { JesusCryptLiquidityLocker } from "../typechain/contracts/JesusCryptLiquidityLocker";
-import type { JesusCryptPresale } from "../typechain/contracts/JesusCryptPresale";
-
 import { expect } from "chai";
-import { main } from "../lib/deploy";
+import { main } from "../lib/deploy.js";
 
-describe("JesusCrypt", function () {
-    let JesusCrypt: JesusCrypt;
-    let JesusCryptAdvisors: JesusCryptAdvisors;
-    let JesusCryptLiquidityLocker: JesusCryptLiquidityLocker;
-    let JesusCryptPresale: JesusCryptPresale;
+describe("JesusCrypt deploy", function () {
+    /** @type {string} */
+    let deployer;
+    /** @type {import("../typechain/contracts/JesusCrypt").JesusCrypt} */
+    let JesusCrypt;
+    /** @type {import("../typechain/contracts/JesusCryptAdvisors").JesusCryptAdvisors} */
+    let JesusCryptAdvisors;
+    /** @type {import("../typechain/contracts/JesusCryptLiquidityLocker").JesusCryptLiquidityLocker} */
+    let JesusCryptLiquidityLocker;
+    /** @type {import("../typechain/contracts/JesusCryptPresale").JesusCryptPresale} */
+    let JesusCryptPresale;
 
     beforeEach(async function () {
-        const { jesusCryptAdvisorsInstance, jesusCryptInstance, jesusCryptLiquidityLockerInstance, jesusCryptPresaleInstance } = await main();
+        const { jesusCryptAdvisorsInstance, jesusCryptInstance, jesusCryptLiquidityLockerInstance, jesusCryptPresaleInstance, deployer: dp } = await main();
 
+        deployer = dp;
         JesusCrypt = jesusCryptInstance;
         JesusCryptAdvisors = jesusCryptAdvisorsInstance;
         JesusCryptLiquidityLocker = jesusCryptLiquidityLockerInstance;

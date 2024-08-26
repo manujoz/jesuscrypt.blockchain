@@ -1,4 +1,4 @@
-import { main } from "../lib/deploy";
+import { main } from "../lib/deploy.js";
 
 main()
     .then(() => process.exit(0))

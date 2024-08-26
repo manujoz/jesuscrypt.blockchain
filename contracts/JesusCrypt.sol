@@ -280,21 +280,23 @@ contract JesusCrypt is ERC20, Ownable, Pausable {
     function setPresale(address _presale, address _liquidityLocker, address _positionManager, address[] memory _developers) external onlyOwner {
         presale = JesusCryptPresale(_presale);
 
+        presale.setPancakeSwapPositionManager(_positionManager);
+        presale.setLiquidityLocker(_liquidityLocker);
+
         uint256 presaleMaxAmount = (INITIAL_SUPPLY * 25) / 100;
         presale.setAmounts(presaleMaxAmount, presaleMaxAmount);
 
-        approve(_presale, balanceOf(owner()));
+        require(approve(_presale, balanceOf(owner())), "Failing approving");
+
+        uint256 allowanceAmount = allowance(owner(), address(this));
+        require(allowanceAmount >= ((INITIAL_SUPPLY * DEVELOPERS_PERCENT) / 100), "Allowance amount is not sufficient");
 
         // Transfer 15% of the total supply to the developers
-        uint256 amountToDevs = (INITIAL_SUPPLY * DEVELOPERS_PERCENT) / 100 / _developers.length;
+        uint256 amountToDevs = ((INITIAL_SUPPLY * DEVELOPERS_PERCENT) / 100) / _developers.length;
         for (uint256 i = 0; i < _developers.length; i++) {
+            _transfer(owner(), _developers[i], amountToDevs);
             presale.addHolder(_developers[i], amountToDevs);
-
-            _transfer(msg.sender, _developers[i], amountToDevs);
         }
-
-        presale.setPancakeSwapPositionManager(_positionManager);
-        presale.setLiquidityLocker(_liquidityLocker);
     }
 
     /**
