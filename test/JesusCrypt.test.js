@@ -2,13 +2,13 @@ import { expect } from "chai";
 import { main } from "../lib/deploy.js";
 
 describe("JesusCrypt", function () {
-    /** @type import("../typechain/contracts/JesusCrypt").JesusCrypt */
+    /** @type {import("../typechain/contracts/JesusCrypt").JesusCrypt} */
     let JesusCrypt;
-    /** @type import("../typechain/contracts/JesusCryptAdvisors").JesusCryptAdvisors */
+    /** @type {import("../typechain/contracts/JesusCryptAdvisors").JesusCryptAdvisors} */
     let JesusCryptAdvisors;
-    /** @type import("../typechain/contracts/JesusCryptLiquidityLocker").JesusCryptLiquidityLocker */
+    /** @type {import("../typechain/contracts/JesusCryptLiquidityLocker").JesusCryptLiquidityLocker} */
     let JesusCryptLiquidityLocker;
-    /** @type import("../typechain/contracts/JesusCryptPresale").JesusCryptPresale */
+    /** @type {import("../typechain/contracts/JesusCryptPresale").JesusCryptPresale} */
     let JesusCryptPresale;
 
     beforeEach(async function () {

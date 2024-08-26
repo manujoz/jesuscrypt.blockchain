@@ -24,6 +24,7 @@ contract JesusCryptAdvisors is Ownable {
 
     constructor(address _jesusCryptToken) Ownable() {
         jesusCryptToken = ERC20(_jesusCryptToken);
+        transferOwnership(_jesusCryptToken);
     }
 
     /**

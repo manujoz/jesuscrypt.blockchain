@@ -81,22 +81,22 @@ contract JesusCrypt is ERC20, Ownable, Pausable {
             }
         }
 
-        if (_from == address(presale) && !presale.isPresaleEnded()) {
+        if (address(presale) != address(0) && _from == address(presale) && !presale.isPresaleEnded()) {
             revert("Transfers not allowed until presale ends");
         }
 
-        if (_from == presale.getLiquididtyLockerAddress() && block.timestamp < presale.getLiquidityLockerUnlockTime()) {
+        if (address(presale) != address(0) && _from == presale.getLiquididtyLockerAddress() && block.timestamp < presale.getLiquidityLockerUnlockTime()) {
             revert("Transfers not allowed because liquidity is locked");
         }
 
-        if (presale.isPresaleHolder(_from)) {
+        if (address(presale) != address(0) && presale.isPresaleHolder(_from)) {
             (bool canTransfer, string memory message) = presale.canPresaleHolderTransfer(_from, _value);
             if (!canTransfer) {
                 revert(message);
             }
         }
 
-        if (advisors.isAdvisor(_from)) {
+        if (address(advisors) != address(0) && advisors.isAdvisor(_from)) {
             require(!advisors.advisorTokensIsLockeds(_from), "Advisor tokens are still locked");
             require(!advisors.advisorAmountToWithdrawAllowed(_from, _value), "Exceeds maximum amount of tokens that can be withdrawn");
             advisors.updateAdvisor(_from, _value);

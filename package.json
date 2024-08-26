@@ -3,10 +3,10 @@
     "version": "0.0.1.beta",
     "type": "module",
     "scripts": {
-        "ganache-start": "ganache-cli -m 'candy maple cake sugar pudding cream honey rich smooth crumble sweet treat' -a 20",
+        "ganache-start": "ganache-cli -m \"candy maple cake sugar pudding cream honey rich smooth crumble sweet treat\" -a 20",
         "compile": "npx hardhat compile",
         "clean": "npx hardhat clean",
-        "test": "npx hardhat test",
+        "test": "npx hardhat clean & npx hardhat test",
         "deploy-dev": "npx hardhat run scripts/deploy.ts --network development",
         "deploy-testnet": "npx hardhat run scripts/deploy.ts --network bscTestnet",
         "deploy-mainnet": "npx hardhat run scripts/deploy.ts --network bscMainnet",
